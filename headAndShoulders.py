@@ -47,7 +47,7 @@ class headAndShoulders(Strategy):
             if cond_1 and cond_2 and cond_3 and cond_4:
                 patterns.append(([window.index[i] for i in range(0, len(window))]))
 
-        print(f"pattern detected {len(patterns)} times ")
+        print(f"Head and Shoulders pattern detected {len(patterns)} times ")
 
         return patterns
 
@@ -94,7 +94,7 @@ class headAndShoulders(Strategy):
             # Selecting the patterns that represent head and shoulders patterns that can be traded
             #pattern_data = pattern_data[(pattern_data['time_for_confirmation'] > 5) & ( pattern_data['time_for_confirmation'] < 30)]
 
-        print(f"pattern confirmed {len(pattern_data)} times")
+        print(f"Head and Shoulders pattern confirmed {len(pattern_data)} times")
 
     def risk_Manager(self, pattern_data: pd.DataFrame):
         # If not empty
@@ -110,5 +110,3 @@ class headAndShoulders(Strategy):
 
                 # Set target at a distance of head_length below the neckline
                 pattern_data.at[x,'target'] = round(pattern_data.at[x,'neck2_price'] +  1 * pattern_data.at[x,'head_length'],2)
-
-        print(f"pattern confirmed {len(pattern_data)} times")

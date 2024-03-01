@@ -49,7 +49,7 @@ class doubleTop(Strategy):
                 patterns.append(
                     ([window.index[i] for i in range(0, len(window))]))
 
-        print(f"pattern detected {len(patterns)} times ")
+        print(f"Double Top pattern detected {len(patterns)} times ")
 
         return patterns
 
@@ -94,7 +94,7 @@ class doubleTop(Strategy):
             # Selecting the patterns that represent head and shoulders patterns that can be traded
             #pattern_data = pattern_data[(pattern_data['time_for_confirmation'] > 5) & ( pattern_data['time_for_confirmation'] < 30)]
 
-        print(f"pattern confirmed {len(pattern_data)} times")
+        print(f"Double Top pattern confirmed {len(pattern_data)} times")
 
     def risk_Manager(self, pattern_data: pd.DataFrame):
         # If not empty
@@ -110,5 +110,3 @@ class doubleTop(Strategy):
 
                 # Set target at a distance of head_length below the neckline
                 pattern_data.at[x,'target'] = round(pattern_data.at[x,'neck1_price'] -  1 * pattern_data.at[x,'top_length'],2)
-
-        print(f"pattern confirmed {len(pattern_data)} times")
