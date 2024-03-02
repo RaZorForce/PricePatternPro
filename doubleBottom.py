@@ -4,6 +4,11 @@ from Strategy import Strategy
 
 class doubleBottom(Strategy):
 
+    def __init__(self):
+        self.name = "Double Bottom"
+        self.datapoints = 3
+        self.bias = "Long"
+
     def pattern_scanner(self, minima: pd.Series, maxima: pd.Series, frequency: str ='daily') -> list:
         # To store pattern instances
         patterns = []
