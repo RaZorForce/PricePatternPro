@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod
+#from abc import ABC, abstractmethod
 import pandas as pd
 from Strategy import Strategy
 
@@ -6,6 +6,9 @@ class Context():
 
     def __init__(self, strategy: Strategy) -> None:
         self._strategy = strategy
+        self._name = strategy.name
+        self._datapoints = strategy.datapoints
+        self._bias = strategy.bias
 
     @property
     def strategy(self) -> Strategy:
