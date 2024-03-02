@@ -17,10 +17,10 @@ class doubleTop(Strategy):
         min_max = pd.concat([minima, maxima]).sort_index()
 
         # Loop to iterate along the price data
-        for i in range(3, len(min_max)):
+        for i in range(self.datapoints, len(min_max)):
 
             # Store 3 local minima and local maxima points at a time in the variable 'window'
-            window = min_max.iloc[i-3:i]
+            window = min_max.iloc[i-self.datapoints:i]
 
             # Determine window length based on the frequency of data
             if frequency == 'daily':
