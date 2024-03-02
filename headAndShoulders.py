@@ -4,6 +4,11 @@ from Strategy import Strategy
 
 class headAndShoulders(Strategy):
 
+    def __init__(self):
+        self.name = "Head and Shoulders"
+        self.datapoints = 5
+        self.bias = "Short"
+
     def pattern_scanner(self, minima: pd.Series, maxima: pd.Series, frequency: str ='daily') -> list:
 
         # To store pattern instances
