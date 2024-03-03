@@ -3,6 +3,7 @@ import os
 import glob
 import threading
 from typing import Tuple
+import icecream as ic
 
 # Data Science imports
 import numpy as np
@@ -18,17 +19,20 @@ from openpyxl import load_workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
 
 # PricePatternPro imports
-from Context import Context
-from doubleBottom import doubleBottom
-from doubleTop import doubleTop
-from headAndShoulders import headAndShoulders
 from headAndShoulders_inverse import headAndShoulders_inverse
 from intraday_data import Intra_Histdata_Request
 from intraday_data import TradingApp
 
+from Context import Context
+from doubleBottom import doubleBottom
+from doubleTop import doubleTop
+from headAndShoulders import headAndShoulders
+from tripleTop import tripleTop
+
+
 def main():
 
-    context = Context(doubleBottom())
+    context = Context(tripleTop())
 
     # Initialize variables
     minima, maxima= {}, {}
@@ -55,7 +59,7 @@ def main():
         print("-"*60)
         print(f"ticker = {key}")
         print("-"*15)
-        if key == "CAN":
+        if key == "BTDR":
             x=10
         #identify all the low and highs swing points on all charts
         minima, maxima = get_min_max(value)
@@ -754,7 +758,7 @@ def portfolio_level_analysis(strategy_data: dict, trades: pd.DataFrame, pattern_
 
     # get equity curve for each individual stock
     for stock, df in strategy_data.items():
-        fees = trades[ trades['Symbol'] == stock ].total_charges.sum()
+        fees = round(trades[ trades['Symbol'] == stock ].total_charges.sum(),2)
 
         cumulative_return[stock] = compute_EquityCurve(df, fees)
 
