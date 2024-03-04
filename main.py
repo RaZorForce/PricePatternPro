@@ -770,10 +770,11 @@ def portfolio_level_analysis(strategy_data: dict, trades: pd.DataFrame, pattern_
 
     # -------------------Plot Equity Curve ------------------------------------
     # Set the title and axis labels
-    plt.plot(cumulative_return['Strategy'], color='purple')
+    plt.plot(cumulative_return['Strategy'].iloc[160:185], color='purple')
     plt.title(f' {pattern_name} - Portfolio Equity Curve', fontsize = 14)
     plt.ylabel('Cumulative Returns', fontsize = 12)
     plt.xlabel('year', fontsize = 12)
+    plt.xticks(rotation=90)
     plt.show()
 
     # ------ Compund Annual Growth Rate (CAGR) --------------------------------
@@ -799,18 +800,18 @@ def compute_EquityCurve(data, total_charges):
 
     """
     # calculate the percentage change for each close price. Shift signal to avoid lookahead bias
-    data['stock_return'] = data['Close'].pct_change() * data['signal'].shift(1)
+    data['stock_return'] = data['Close']['2023-10-02':'2023-10-04'].pct_change() * data['signal']['2023-10-02':'2023-10-04'].shift(1)
 
     # Calculate the trading cost when you square off the position
-    trading_cost = (total_charges * np.abs(data['signal'] - data['signal'].shift(1)))
+    trading_cost = (total_charges * np.abs(data['signal']['2023-10-02':'2023-10-04'] - data['signal']['2023-10-02':'2023-10-04'].shift(1)))
 
     # Calculate net strategy returns
-    data['strategy_returns_minus_cost'] = data['stock_return'] - trading_cost
+    data['strategy_returns_minus_cost'] = data['stock_return']['2023-10-02':'2023-10-04'] - trading_cost
 
     # 1 is the initial capital added on top of the stock return
-    data['cumulative_returns'] = (1 +  data['strategy_returns_minus_cost'] ).cumprod()
+    data['cumulative_returns'] = (1 +  data['strategy_returns_minus_cost']['2023-10-02':'2023-10-04'] ).cumprod()
 
-    return data['cumulative_returns']
+    return data['cumulative_returns']['2023-10-02':'2023-10-04']
 
 def compute_CAGR(strategy_equity_curve):
     """
