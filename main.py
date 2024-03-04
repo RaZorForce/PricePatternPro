@@ -19,7 +19,6 @@ from openpyxl import load_workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
 
 # PricePatternPro imports
-from headAndShoulders_inverse import headAndShoulders_inverse
 from intraday_data import Intra_Histdata_Request
 from intraday_data import TradingApp
 
@@ -27,12 +26,13 @@ from Context import Context
 from doubleBottom import doubleBottom
 from doubleTop import doubleTop
 from headAndShoulders import headAndShoulders
+from headAndShoulders_inverse import headAndShoulders_inverse
 from tripleTop import tripleTop
 
 
 def main():
 
-    context = Context(tripleTop())
+    context = Context(headAndShoulders())
 
     # Initialize variables
     minima, maxima= {}, {}
@@ -70,7 +70,7 @@ def main():
         if len(pattern_data) == 0:
             continue
 
-        plot_pattern(value, pattern_data, key, context)
+        #plot_pattern(value, pattern_data, key, context)
 
         #Prepare backtesting
         strategy_data = pre_backtester(value, pattern_data )
@@ -92,7 +92,7 @@ def main():
         # Store strategy data in a global variable
         strategy_data_global[key] = strategy_data
 
-        plot_trades(value, trade_summary, key, context._name)
+        #plot_trades(value, trade_summary, key, context._name)
 
     # Portfolio & Strategy Performance Anylysis
     trade_summary_global.reset_index(drop=True, inplace = True)
@@ -100,10 +100,10 @@ def main():
     #log_trades(trade_summary_global)
 
     # Analyse strategy performance
-    strategy_performance = startegy_level_analysis(trade_summary_global)
+    strategy_performance = startegy_level_analysis(trade_summary_global, context._name)
 
     #Analyze portfolio performance
-    portfolio_performance = portfolio_level_analysis(strategy_data_global, trade_summary_global, context._name)
+    portfolio_performance = portfolio_level_analysis(strategy_data_global, trade_summary_global, context)
 
     # Combined performance
     performance = pd.concat([strategy_performance, portfolio_performance])
@@ -651,7 +651,7 @@ def slippage_Modelling(intra_histdata: dict, trades:pd.DataFrame) -> pd.DataFram
 
 ###############################################################################
 ########################## TRADING LOGS FUNCTIONS   ###########################
-###############################################################################
+############################## TODO ###########################################
 
 def log_trades(trades_summary: pd.DataFrame):
 
@@ -707,10 +707,10 @@ def log_trades(trades_summary: pd.DataFrame):
 #################### PERFORMANCE ANALYSIS FUNCTIONS ###########################
 ###############################################################################
 
-def startegy_level_analysis(trades: pd.DataFrame) -> pd.DataFrame:
+def startegy_level_analysis(trades: pd.DataFrame, pattern_name: str) -> pd.DataFrame:
 
     # Create dataframe to store trade analytics
-    analytics = pd.DataFrame(index=['Strategy'])
+    analytics = pd.DataFrame(index=[pattern_name])
 
     #for key, value in trades.items:
 
@@ -751,16 +751,18 @@ def startegy_level_analysis(trades: pd.DataFrame) -> pd.DataFrame:
 
     return analytics.T
 
-def portfolio_level_analysis(strategy_data: dict, trades: pd.DataFrame, pattern_name: str):
+def portfolio_level_analysis(strategy_data: dict, trades: pd.DataFrame, context: Context):
+    pattern_name = context._name
+    bias = context._bias
 
-    performance_metrics = pd.DataFrame(index=['Strategy'])
+    performance_metrics = pd.DataFrame(index=[pattern_name])
     cumulative_return = pd.DataFrame()
 
     # get equity curve for each individual stock
     for stock, df in strategy_data.items():
-        fees = round(trades[ trades['Symbol'] == stock ].total_charges.sum(),2)
+        fees = round(trades[ trades['Symbol'] == stock ].total_charges.sum(), 4)
 
-        cumulative_return[stock] = compute_EquityCurve(df, fees)
+        cumulative_return[stock] = compute_EquityCurve(df, fees, bias)
 
     # aggregate all equity curves into a single curve
     cumulative_return['Strategy'] = cumulative_return.sum(axis=1) - (len(cumulative_return.columns) - 1)
@@ -770,11 +772,12 @@ def portfolio_level_analysis(strategy_data: dict, trades: pd.DataFrame, pattern_
 
     # -------------------Plot Equity Curve ------------------------------------
     # Set the title and axis labels
-    plt.plot(cumulative_return['Strategy'].iloc[160:185], color='purple')
+    plt.plot(cumulative_return['Strategy'], color='purple')
     plt.title(f' {pattern_name} - Portfolio Equity Curve', fontsize = 14)
     plt.ylabel('Cumulative Returns', fontsize = 12)
     plt.xlabel('year', fontsize = 12)
     plt.xticks(rotation=90)
+    plt.savefig(f'C:\\X\\Workspaces\\PricePatternPro\\Plots\\{pattern_name} - Equity Curve.png')
     plt.show()
 
     # ------ Compund Annual Growth Rate (CAGR) --------------------------------
@@ -795,25 +798,44 @@ def portfolio_level_analysis(strategy_data: dict, trades: pd.DataFrame, pattern_
 ########################## COMPUTATION FUNCTIONS ##############################
 ###############################################################################
 
-def compute_EquityCurve(data, total_charges):
+def compute_EquityCurve(data: pd.DataFrame, total_charges: float, bias: str) -> pd.Series:
     """
-
+    An equity curve is a representation showing the cumulative performance of an investment or trading strategy over time.
     """
     # calculate the percentage change for each close price. Shift signal to avoid lookahead bias
-    data['stock_return'] = data['Close']['2023-10-02':'2023-10-04'].pct_change() * data['signal']['2023-10-02':'2023-10-04'].shift(1)
+    data['stock_return'] = np.abs(data['Close'].pct_change() * data['signal'].shift(1))
 
     # Calculate the trading cost when you square off the position
-    trading_cost = (total_charges * np.abs(data['signal']['2023-10-02':'2023-10-04'] - data['signal']['2023-10-02':'2023-10-04'].shift(1)))
+    trading_cost = (total_charges * np.abs(data['signal'] - data['signal'].shift(1)))
 
     # Calculate net strategy returns
-    data['strategy_returns_minus_cost'] = data['stock_return']['2023-10-02':'2023-10-04'] - trading_cost
+    data['net_return'] = data['stock_return'] - trading_cost
 
-    # 1 is the initial capital added on top of the stock return
-    data['cumulative_returns'] = (1 +  data['strategy_returns_minus_cost']['2023-10-02':'2023-10-04'] ).cumprod()
+    # Initialize equity with initial capital (assuming it's 1 for simplicity)
+    equity_curve = pd.Series(index=data.index, data=1.0)
 
-    return data['cumulative_returns']['2023-10-02':'2023-10-04']
+    # Iterate over each trade entry and exit
+    for i in range(1, len(data)):
 
-def compute_CAGR(strategy_equity_curve):
+        if bias == "Long":
+            # Enter Long
+            if data['signal'].iloc[i] == 1:
+                equity_curve[i:] = (equity_curve.iloc[i] - data['net_return'].iloc[i+1])
+            # Exit Long
+            elif data['signal'].iloc[i] == -1:
+                equity_curve[i:] = (equity_curve.iloc[i] + data['net_return'].iloc[i+1])
+
+        elif bias == "Short":
+            # Enter Short
+            if data['signal'].iloc[i] == -1:
+                equity_curve[i:] = (equity_curve.iloc[i] - data['net_return'].iloc[i+1])
+            # Exit Short
+            elif data['signal'].iloc[i] == 1:
+                equity_curve[i:] = (equity_curve.iloc[i] + data['net_return'].iloc[i+1])
+
+    return equity_curve
+
+def compute_CAGR(strategy_equity_curve: pd.DataFrame) -> float:
     """
     It is the measure of a strategy's annual growth rate over time
     """
@@ -829,7 +851,7 @@ def compute_CAGR(strategy_equity_curve):
 
     return round(cagr, 2)
 
-def compute_SharpeRatio(strategy_equity_curve):
+def compute_SharpeRatio(strategy_equity_curve: pd.DataFrame) -> float:
     """
     It is the ratio of the returns earned in excess of the risk-free rate per unit of risk taken
     """
@@ -844,7 +866,7 @@ def compute_SharpeRatio(strategy_equity_curve):
 
     return round(Sharpe_Ratio, 2)
 
-def compute_DrawDown(strategy_equity_curve, pattern_name = str):
+def compute_DrawDown(strategy_equity_curve: pd.DataFrame, pattern_name: str) -> float:
     """
     It signifies the maximum loss from a peak to a trough of a strategy and is expressed in percentage terms.
     """
@@ -865,11 +887,12 @@ def compute_DrawDown(strategy_equity_curve, pattern_name = str):
     plt.title(f'{pattern_name} - Portfolio Drawdown', fontsize=14)
     plt.ylabel('Drawdown(%)', fontsize=12)
     plt.xlabel('Year', fontsize=12)
+    plt.savefig(f'C:\\X\\Workspaces\\PricePatternPro\\Plots\\{pattern_name} - Portfolio Drawdown.png')
     plt.show()
 
     return round(data['Maximum Drawdown'].min(),2)
 
-def compute_annualized_volatility(strategy_equity_curve):
+def compute_annualized_volatility(strategy_equity_curve: pd.DataFrame) -> float:
     """
     Volatility is the rate at which the strategy returns increases or decreases over a year.
     """
@@ -877,6 +900,9 @@ def compute_annualized_volatility(strategy_equity_curve):
 
     return round(annualized_volatiliy,2)
 
+###############################################################################
+##################################### EOF #####################################
+###############################################################################
 
 if __name__ == "__main__":
     main()
