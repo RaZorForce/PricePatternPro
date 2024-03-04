@@ -28,11 +28,11 @@ from doubleTop import doubleTop
 from headAndShoulders import headAndShoulders
 from headAndShoulders_inverse import headAndShoulders_inverse
 from tripleTop import tripleTop
-
+from tripleBottom import tripleBottom
 
 def main():
 
-    context = Context(headAndShoulders())
+    context = Context(tripleBottom())
 
     # Initialize variables
     minima, maxima= {}, {}
