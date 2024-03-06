@@ -32,7 +32,7 @@ from tripleBottom import tripleBottom
 
 def main():
 
-    context = Context(tripleBottom())
+    context = Context(doubleTop())
 
     # Initialize variables
     minima, maxima= {}, {}
@@ -72,8 +72,13 @@ def main():
 
         #plot_pattern(value, pattern_data, key, context)
 
+        # get support and resistance values
+        sup, res = get_sup_res(minima, maxima, value)
+
+        if not np.isnan(sup) and not np.isnan(res): plot_sup_res(value, sup, res, key, context._name)
+
         #Prepare backtesting
-        strategy_data = pre_backtester(value, pattern_data )
+        strategy_data = pre_backtester(value, pattern_data)
         #Start backtesting
         trade_summary = backtester(strategy_data, key)
         #Post backtesting
@@ -114,8 +119,8 @@ def main():
 ############################## GENERAL FUNCTIONS ##############################
 ###############################################################################
 
-def get_min_max(df :pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    argrel_window = 5
+def get_min_max(df: pd.DataFrame, argrel_window: int = 5) -> Tuple[pd.DataFrame, pd.DataFrame]:
+
 
     #use the argrelextrema to compute the local minima and maxima points
     local_min = argrelextrema(df.iloc[:-argrel_window]['Low'].values,
@@ -126,6 +131,62 @@ def get_min_max(df :pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
 
     #store the minima and maxima values in a dataframe
     return  df.iloc[local_min].Low,  df.iloc[local_max].High
+
+def get_sup_res(minima: pd.Series, maxima: pd.Series, dataframe: pd.DataFrame) -> Tuple[float, float]:
+
+    # Fetch the last traded price
+    ltp = dataframe.Close.iloc[-1]
+
+    dataframe['support'] = minima
+    dataframe['resistance'] = maxima
+
+    support = get_support(dataframe, ltp)
+    resistance = get_resistance(dataframe, ltp)
+
+    return support, resistance
+
+# Function to get the nearest support level
+def get_support(dataframe: pd.DataFrame, ltp: float) -> float:
+
+    # elements conditional assignement: assign values based on conditions.
+    dataframe['support'] = np.where(dataframe['support'] < ltp, dataframe['support'], np.nan)
+
+    try:
+        # Get the nearest support level
+        # get the last support date .index.max()  and return it's value
+        return dataframe.loc[dataframe.support.dropna().index.max(), 'support']
+    except:
+        return np.nan
+
+# Function to get the nearest resistance level
+def get_resistance(dataframe: pd.DataFrame, ltp: float) -> float:
+
+    # elements conditional assignement: assign values based on conditions.
+    dataframe['resistance'] = np.where(dataframe['resistance'] > ltp, dataframe['resistance'], np.nan)
+
+    try:
+        # Get the nearest resistance level
+        # get the last resistance date .index.max() and return it's value
+        return dataframe.loc[dataframe.resistance.dropna().index.max(), 'resistance']
+    except:
+        return np.nan
+
+###############################################################################
+############################## PLOTTING FUNCTIONS #############################
+###############################################################################
+
+def plot_sup_res(data: pd.DataFrame, support: float, resistance: float, ticker: str, name: str):
+
+    # Additional plots for marking the support and resistance levels
+    apd = [mpf.make_addplot(data.support, type='scatter', color="green"),
+           mpf.make_addplot(data.resistance, type='scatter', color="red")]
+
+    title = ticker + ' - ' + name + ' - ' 'Support & Resistance'
+
+    # Plot the OHLC data along with the lines passing through the nearest support and resistance levels
+    mpf.plot(data, type='candle', style='classic', addplot=apd, title=title,
+             figsize=(15, 7),hlines=dict(hlines=[support,resistance],
+                                         colors=['g','r'],linestyle='-.'))
 
 def plot_pattern(data: pd.DataFrame, pattern_data: pd.DataFrame, ticker: str, context: Context):
     points = context._datapoints
